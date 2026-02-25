@@ -1,25 +1,21 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-// Routes that don't require authentication
-const publicRoutes = ['/login', '/register'];
-
 export function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl;
     const token = request.cookies.get('token')?.value;
 
-    // If user is not authenticated and trying to access protected route
-    if (!token && !publicRoutes.includes(pathname) && pathname !== '/') {
-        const loginUrl = new URL('/login', request.url);
-        return NextResponse.redirect(loginUrl);
+    // In cross-domain deployments (Vercel frontend + Render backend),
+    // the JWT cookie is set on the backend domain and is NOT visible here.
+    // Client-side auth context handles protection via /api/auth/me calls.
+    // This middleware only acts when having definitive knowledge (cookie present).
+
+    // If we CAN see the token and user visits auth pages → redirect to dashboard
+    if (token && (pathname === '/login' || pathname === '/register')) {
+        return NextResponse.redirect(new URL('/dashboard', request.url));
     }
 
-    // If user is authenticated and trying to access auth pages
-    if (token && publicRoutes.includes(pathname)) {
-        const dashboardUrl = new URL('/dashboard', request.url);
-        return NextResponse.redirect(dashboardUrl);
-    }
-
+    // Let all other requests through — client-side auth handles protection
     return NextResponse.next();
 }
 
